@@ -28,6 +28,7 @@ class AppliedId:
             return str(self.id)
 
 # Reorders the slots a bunch of AppliedIds, so that they are lexicographically minimal.
+# This means that the first id will always have (0, 1, 2, ...) as arguments.
 # Eg. (id2[4, 2, 1], id5[0, 1, 3, 4]) would reorder to
 #     (id2[0, 1, 2], id5[3, 2, 4, 0]
 # The ids themselves stay unchanged.
