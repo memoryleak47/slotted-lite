@@ -49,7 +49,7 @@ class SlottedUF:
             args = tuple(x.args[a] for a in l.args)
             x = AppliedId(l.id, args)
 
-    def union(self, x, y):
+    def union(self, x: AppliedId, y: AppliedId):
         x = self.find(x)
         y = self.find(y)
 
@@ -59,7 +59,7 @@ class SlottedUF:
         args = tuple(x.args.index(a) for a in y.args)
         self.classes[x.id].leader = AppliedId(y.id, args)
 
-    def is_equal(self, x, y):
+    def is_equal(self, x: AppliedId, y: AppliedId) -> bool:
         x = self.find(x)
         y = self.find(y)
         # TODO handle symmetries
