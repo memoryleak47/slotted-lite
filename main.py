@@ -27,6 +27,23 @@ class AppliedId:
         else:
             return str(self.id)
 
+# Reorders the slots a bunch of AppliedIds, so that they are lexicographically minimal.
+# Eg. (id2[4, 2, 1], id5[0, 1, 3, 4]) would reorder to
+#     (id2[0, 1, 2], id5[3, 2, 4, 0]
+# The ids themselves stay unchanged.
+def reorder(app_ids: tuple(AppliedId)) -> (dict[Slot, Slot], tuple(AppliedId)):
+    d = {}
+    out = []
+    for a in app_ids:
+        args = []
+        for s in a.args:
+            if s not in d:
+                d[s] = len(d)
+            args.append(d[s])
+        args = tuple(args)
+        out.append(AppliedId(a.id, args))
+    return (d, tuple(out))
+
 class SlottedUF:
     classes: dict[Id, Class]
 
@@ -61,13 +78,18 @@ class SlottedUF:
                 for s in set(y.args) - set(x.args):
                     self.mark_slot_redundant(y, s)
 
-        if x == y: return
+        # all redundancies should be handled now!
         assert(set(x.args) == set(y.args))
 
-        # id3[a, b, c] = id7[c, a, b]
-        # -> id3[0, 1, 2] = id7[2, 0, 1]
-        args = tuple(x.args.index(a) for a in y.args)
-        self.classes[x.id].leader = AppliedId(y.id, args)
+        if x == y: return
+
+        _, (x, y) = reorder((x, y))
+
+        if x.id == y.id:
+            # symmetries!
+            self.classes[x.id].group.add(y.args)
+        else:
+            self.classes[x.id].leader = y
 
     def mark_slot_redundant(self, x: AppliedId, s: Slot):
         x = self.find(x)
@@ -83,8 +105,10 @@ class SlottedUF:
     def is_equal(self, x: AppliedId, y: AppliedId) -> bool:
         x = self.find(x)
         y = self.find(y)
-        # TODO handle symmetries
-        return x == y
+        if x.id != y.id:
+            return False
+        _, (x, y) = reorder((x, y))
+        return self.classes[x.id].group.contains(y.args)
 
 # a group permutation.
 # Required to express equations like id0[0, 1] = id0[1, 0].
