@@ -46,14 +46,23 @@ class SlottedUF:
             l = self.classes[x.id].leader
             if l == None:
                 return x
-            x = l # TODO fix slot order
+            x = AppliedId(l.id, tuple(x.args[a] for a in l.args))
 
     def union(self, x, y):
         x = self.find(x)
         y = self.find(y)
-        if x == y: return
 
-        self.classes[x.id].leader = y # TODO fix slot order
+        if x == y: return
+        assert(set(x.args) == set(y.args))
+
+        y_arity = self.classes[y.id].arity
+        out = list(range(y_arity))
+        for i in range(y_arity):
+            aa = y.args[i]
+            aa = x.args.index(aa)
+            out[i] = aa
+        out = tuple(out)
+        self.classes[x.id].leader = AppliedId(y.id, out)
 
     def is_equal(self, x, y):
         x = self.find(x)
@@ -65,5 +74,6 @@ suf = SlottedUF()
 a = AppliedId(suf.alloc(2), (2, 3))
 b = AppliedId(suf.alloc(2), (2, 3))
 print(a)
+print(suf.is_equal(a, b))
 suf.union(a, b)
 print(suf.is_equal(a, b))
