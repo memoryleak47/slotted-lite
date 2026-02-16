@@ -1,8 +1,5 @@
 from dataclasses import dataclass
 
-class Group:
-    pass
-
 @dataclass(frozen=True)
 class Id:
     i: int
@@ -15,7 +12,7 @@ type Slot = int
 
 class Class:
     def __init__(self, arity: int):
-        self.group = Group()
+        self.group = Group(arity)
         self.arity = arity
         self.leader = None
 
@@ -89,6 +86,36 @@ class SlottedUF:
         # TODO handle symmetries
         return x == y
 
+# a group permutation.
+# Required to express equations like id0[0, 1] = id0[1, 0].
+type Perm = tuple(Slot)
+
+def compose(x: Perm, y: Perm) -> Perm:
+    return tuple(x[y[i]] for i in range(len(x)))
+
+# The most naive implementation of a permutation group: A set of permutations that is closed under composition.
+class Group:
+    def __init__(self, arity: int):
+        identity_perm = tuple(range(arity))
+        self.perms = {identity_perm}
+
+    def add(self, x: Perm):
+        self.perms.add(x)
+        self.complete()
+
+    def complete(self):
+        while True:
+            n = len(self.perms)
+            new = set()
+            for x in self.perms:
+                for y in self.perms:
+                    new.add(compose(x, y))
+            self.perms.update(new)
+            if n == len(self.perms):
+                break
+
+    def contains(self, x: Perm) -> bool:
+        return x in self.perms
 
 def test1():
     suf = SlottedUF()
@@ -108,5 +135,12 @@ def test2():
     assert(suf.find(a).args == (2,))
     assert(suf.find(b).args == (2,))
 
+def test3():
+    g = Group(4)
+    g.add((1, 2, 3, 0))
+    assert(g.contains((2, 3, 0, 1)))
+    assert(len(g.perms) == 4)
+
 test1()
 test2()
+test3()
