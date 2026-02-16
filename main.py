@@ -70,14 +70,12 @@ class SlottedUF:
         while True:
             x = self.find(x)
             y = self.find(y)
-            if set(x.args) == set(y.args):
-                break
-            else:
+            if set(x.args) != set(y.args):
                 # redundant slots!
-                for s in set(x.args) - set(y.args):
-                    self.mark_slot_redundant(x, s)
-                for s in set(y.args) - set(x.args):
-                    self.mark_slot_redundant(y, s)
+                self.mark_slots_redundant(x, set(x.args) - set(y.args))
+                self.mark_slots_redundant(y, set(y.args) - set(x.args))
+            else:
+                break
 
         # all redundancies should be handled now!
         assert(set(x.args) == set(y.args))
@@ -92,15 +90,22 @@ class SlottedUF:
         else:
             self.classes[x.id].leader = y
 
-    def mark_slot_redundant(self, x: AppliedId, s: Slot):
+    def mark_slots_redundant(self, x: AppliedId, slots: set[Slot]):
         x = self.find(x)
-        if s not in x.args: return
 
-        s = x.args.index(s)
+        redundants = set()
+        for s in slots:
+            if s not in x.args: continue
+            s = x.args.index(s)
+            redundants.update(self.classes[x.id].group.orbit(s))
+
+        if len(redundants) == 0:
+            return
 
         old_arity = self.classes[x.id].arity
-        y = self.alloc(old_arity - 1)
-        args = tuple(a for a in range(old_arity) if a != s)
+        new_arity = old_arity - len(redundants)
+        y = self.alloc(new_arity)
+        args = tuple(s for s in range(old_arity) if s not in redundants)
         self.classes[x.id].leader = AppliedId(y, args)
 
     def is_equal(self, x: AppliedId, y: AppliedId) -> bool:
@@ -138,6 +143,12 @@ class Group:
             self.perms.update(new)
             if n == len(self.perms):
                 break
+
+    def orbit(self, s: Slot) -> set[Slot]:
+        orbit = {s}
+        for p in self.perms:
+            orbit.add(p[s])
+        return orbit
 
     def contains(self, x: Perm) -> bool:
         return x in self.perms
