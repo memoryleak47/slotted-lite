@@ -77,7 +77,7 @@ class SlottedUF:
             else:
                 break
 
-        # all redundancies should be handled now!
+        # all redundancies should have been handled now!
         assert(set(x.args) == set(y.args))
 
         if x == y: return
