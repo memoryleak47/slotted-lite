@@ -46,6 +46,8 @@ class SlottedUF:
             l = self.classes[x.id].leader
             if l == None:
                 return x
+            # if id7[0, 1, 2] -> id3[2, 1] is a leader edge, then we want to simplify
+            #    id7[a, b, c] -> id3[c, b]
             args = tuple(x.args[a] for a in l.args)
             x = AppliedId(l.id, args)
 
@@ -56,6 +58,8 @@ class SlottedUF:
         if x == y: return
         assert(set(x.args) == set(y.args))
 
+        # id3[a, b, c] = id7[c, a, b]
+        # -> id3[0, 1, 2] = id7[2, 0, 1]
         args = tuple(x.args.index(a) for a in y.args)
         self.classes[x.id].leader = AppliedId(y.id, args)
 
