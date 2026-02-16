@@ -52,8 +52,17 @@ class SlottedUF:
             x = AppliedId(l.id, args)
 
     def union(self, x: AppliedId, y: AppliedId):
-        x = self.find(x)
-        y = self.find(y)
+        while True:
+            x = self.find(x)
+            y = self.find(y)
+            if set(x.args) == set(y.args):
+                break
+            else:
+                # redundant slots!
+                for s in set(x.args) - set(y.args):
+                    self.mark_slot_redundant(x, s)
+                for s in set(y.args) - set(x.args):
+                    self.mark_slot_redundant(y, s)
 
         if x == y: return
         assert(set(x.args) == set(y.args))
@@ -63,16 +72,41 @@ class SlottedUF:
         args = tuple(x.args.index(a) for a in y.args)
         self.classes[x.id].leader = AppliedId(y.id, args)
 
+    def mark_slot_redundant(self, x: AppliedId, s: Slot):
+        x = self.find(x)
+        if s not in x.args: return
+
+        s = x.args.index(s)
+
+        old_arity = self.classes[x.id].arity
+        y = self.alloc(old_arity - 1)
+        args = tuple(a for a in range(old_arity) if a != s)
+        self.classes[x.id].leader = AppliedId(y, args)
+
     def is_equal(self, x: AppliedId, y: AppliedId) -> bool:
         x = self.find(x)
         y = self.find(y)
         # TODO handle symmetries
         return x == y
 
-suf = SlottedUF()
-a = AppliedId(suf.alloc(2), (2, 3))
-b = AppliedId(suf.alloc(2), (2, 3))
-print(a)
-assert(not suf.is_equal(a, b))
-suf.union(a, b)
-assert(suf.is_equal(a, b))
+
+def test1():
+    suf = SlottedUF()
+    a = AppliedId(suf.alloc(2), (2, 3))
+    b = AppliedId(suf.alloc(2), (2, 3))
+    print(a)
+    assert(not suf.is_equal(a, b))
+    suf.union(a, b)
+    assert(suf.is_equal(a, b))
+
+def test2():
+    suf = SlottedUF()
+    a = AppliedId(suf.alloc(2), (2, 3))
+    b = AppliedId(suf.alloc(2), (2, 4))
+    assert(not suf.is_equal(a, b))
+    suf.union(a, b)
+    assert(suf.find(a).args == (2,))
+    assert(suf.find(b).args == (2,))
+
+test1()
+test2()
