@@ -105,7 +105,7 @@ class SlottedUF:
         # y.id inherits the symmetries from x
         identity = tuple(range(x_arity))
         for p in self.classes[x].group.perms:
-            # The equation corresponding to this permutation.
+            # The equation 'lhs = rhs' corresponding to this permutation.
             lhs = AppliedId(x, identity)
             rhs = AppliedId(x, p)
 
