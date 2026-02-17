@@ -72,6 +72,10 @@ class SlottedUF:
             y = self.find(y)
             if set(x.args) != set(y.args):
                 # redundant slots!
+
+                # Example: if id3[a, b] = id7[a], then id3[a, b] doesn't really depend on b anymore.
+                # Reasoning: id3[a, b] = id7[a] = id3[a, c]. Thus id3[a, b] = id3[a, c] for any slot c.
+                # Thus, we'll mark b redundant in id3[a, b].
                 self.mark_slots_redundant(x, set(x.args) - set(y.args))
                 self.mark_slots_redundant(y, set(y.args) - set(x.args))
             else:
@@ -80,15 +84,45 @@ class SlottedUF:
         # all redundancies should have been handled now!
         assert(set(x.args) == set(y.args))
 
-        if x == y: return
+        if self.is_equal(x, y): return
 
         _, (x, y) = reorder((x, y))
 
         if x.id == y.id:
             # symmetries!
+            # Example: if id3[0, 1] = id3[1, 0], we need to store this symmetry [1, 0] in the group of id3!
             self.classes[x.id].group.add(y.args)
         else:
-            self.classes[x.id].leader = y
+            self.add_uf_edge(x.id, y)
+
+    # Makes x point to y in the unionfind.
+    def add_uf_edge(self, x: Id, y: AppliedId):
+        self.classes[x].leader = y
+
+        x_arity = self.classes[x].arity
+        y_arity = self.classes[y.id].arity
+
+        # y.id inherits the symmetries from x
+        identity = tuple(range(x_arity))
+        for p in self.classes[x].group.perms:
+            # The equation corresponding to this permutation.
+            lhs = AppliedId(x, identity)
+            rhs = AppliedId(x, p)
+
+            # Tranforming the equation from x to y.id.
+            lhs = self.find(lhs)
+            rhs = self.find(rhs)
+
+            _, (lhs, rhs) = reorder((lhs, rhs))
+
+            for s in rhs.args:
+                assert(s < y_arity)
+
+            self.classes[y.id].group.add(rhs.args)
+
+        # x is now "non-canonical", thus it has no reason to a group.
+        # If you want to know the symmetries, check the permutation group of the leader.
+        self.classes[x].group = None
 
     def mark_slots_redundant(self, x: AppliedId, slots: set[Slot]):
         x = self.find(x)
@@ -106,7 +140,7 @@ class SlottedUF:
         new_arity = old_arity - len(redundants)
         y = self.alloc(new_arity)
         args = tuple(s for s in range(old_arity) if s not in redundants)
-        self.classes[x.id].leader = AppliedId(y, args)
+        self.add_uf_edge(x.id, AppliedId(y, args))
 
     def is_equal(self, x: AppliedId, y: AppliedId) -> bool:
         x = self.find(x)
