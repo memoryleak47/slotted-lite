@@ -46,8 +46,6 @@ class Renaming:
         if isinstance(o, Renaming):
             # This is effectively a partial compose
             return Renaming.mk([(a, self[b]) for (a, b) in o if b in self.keys()])
-        elif isinstance(o, Id):
-            return RenamedId(self, o)
         elif isinstance(o, RenamedId):
             return RenamedId(self * o.m, o.id)
         else:
@@ -185,7 +183,7 @@ class SlottedUF:
 
         if a.id != b.id:
             # make a point to b
-            self.move_to(a.id, m_ab * b.id)
+            self.move_to(a.id, RenamedId(m_ab, b.id))
         else:
             # add self-symmetry
             self.classes[a.id].group.add(m_ab)
