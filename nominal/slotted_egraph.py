@@ -264,7 +264,7 @@ class SlottedEGraph():
     def union(self, a: RenamedId, b: RenamedId) -> None:
         return self.uf.union(a, b)
 
-    def is_eq(self, a: RenamedId, b: RenamedId) -> bool:
+    def is_equal(self, a: RenamedId, b: RenamedId) -> bool:
         self.rebuild()
         return self.uf.is_eq(a, b)
 
