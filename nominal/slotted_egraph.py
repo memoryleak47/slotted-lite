@@ -47,6 +47,7 @@ class Renaming:
             # This is effectively a partial compose
             return Renaming.mk([(a, self[b]) for (a, b) in o if b in self.keys()])
         elif isinstance(o, RenamedId):
+            # Here we convert `m1 * (m2 * a)` to `(m1 * m2) * a`
             return RenamedId(self * o.m, o.id)
         else:
             raise TypeError(o)
