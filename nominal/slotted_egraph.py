@@ -127,6 +127,7 @@ class SlottedUF:
         while True:
             y = x.m * self.classes[x.id].leader
             if x == y: return x
+            x = y
 
     # Make a point to b
     def move_to(self, a: Id, b: RenamedId):
