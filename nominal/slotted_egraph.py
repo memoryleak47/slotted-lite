@@ -115,7 +115,6 @@ class SlottedUF:
     classes: dict[Id, Class] = field(default_factory=dict)
 
     def makeset(self, slots: list[Slot]) -> RenamedId:
-        assert(tuple(sorted(slots)) == tuple(slots))
         id = Id(len(self.classes))
         i = RenamedId(Renaming.mk([(a, a) for a in slots]), id)
         self.classes[id] = Class(slots, i, Group(set(slots)))
