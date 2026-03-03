@@ -79,9 +79,6 @@ class Group:
         identity = Renaming.mk(list(zip(elems, elems)))
         self.perms = {identity}
 
-    def contains(self, p: Perm):
-        return p in self.perms
-
     def add(self, p: Perm):
         self.perms.add(p)
         self.complete()
@@ -90,20 +87,15 @@ class Group:
         while True:
             cnt = len(self.perms)
             newperms = []
-            for p in self.perms:
-                newperms.append(p.inverse())
             for p1 in self.perms:
                 for p2 in self.perms:
-                    newperms.append(p1.compose(p2))
+                    newperms.append(p1 * p2)
             self.perms.update(newperms)
             if cnt == len(self.perms):
                 break
 
     def orbit(self, slot: Slot) -> set[Slot]:
         return {p[slot] for p in self.perms}
-
-    def __len__(self):
-        return len(self.perms)
 
 @dataclass
 class Class:
