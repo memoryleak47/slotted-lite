@@ -1,4 +1,5 @@
 from dataclasses import dataclass, field
+import itertools
 
 @dataclass(frozen=True)
 class Slot:
@@ -17,23 +18,33 @@ class Renaming:
     def __repr__(self):
         return "[" + ", ".join(f"{a} -> {b}" for (a, b) in self.map) + "]"
 
+    def __post_init__(self):
+        ks = set()
+        vs = set()
+        for (k, v) in self.map:
+            assert(isinstance(k, Slot))
+            assert(isinstance(v, Slot))
+            ks.add(k)
+            vs.add(v)
+        assert(len(ks) == len(self.map))
+        assert(len(vs) == len(self.map))
+
+        # It is sorted
+        assert(tuple(sorted(self.map, key=lambda x: x[0])) == self.map)
+
     def mk(l: iter[(Slot, Slot)]):
         l = sorted(l, key=lambda x: x[0])
-
-        # Both keys and values have no duplicates!
-        assert(len(l) == len(set(x[0] for x in l)))
-        assert(len(l) == len(set(x[1] for x in l)))
-
         return Renaming(tuple(l))
 
     def inverse(self):
         return Renaming.mk([(b, a) for (a, b) in self.map])
 
     def keys(self):
-        return {a for (a, b) in self.map}
+        return [a for (a, b) in self.map]
 
+    # ordering here is important!
     def values(self):
-        return {b for (a, b) in self.map}
+        return [b for (a, b) in self.map]
 
     def __getitem__(self, key: Slot):
         for a, b in self.map:
@@ -48,7 +59,9 @@ class Renaming:
             return Renaming.mk([(a, self[b]) for (a, b) in o if b in self.keys()])
         elif isinstance(o, RenamedId):
             # Here we convert `m1 * (m2 * a)` to `(m1 * m2) * a`
-            return RenamedId(self * o.m, o.id)
+            return (self * o.m) * o.id
+        elif isinstance(o, Id):
+            return RenamedId(self, o)
         else:
             raise TypeError(o)
 
@@ -105,7 +118,7 @@ class Group:
 
 @dataclass
 class Class:
-    slots: list[Slot] = field()
+    slots: set[Slot] = field()
     leader: RenamedId = field()
     group: Group = field()
 
@@ -113,9 +126,9 @@ class Class:
 class SlottedUF:
     classes: dict[Id, Class] = field(default_factory=dict)
 
-    def makeset(self, slots: list[Slot]) -> RenamedId:
+    def makeset(self, slots: set[Slot]) -> RenamedId:
         id = Id(len(self.classes))
-        i = RenamedId(Renaming.mk([(a, a) for a in slots]), id)
+        i = Renaming.mk([(a, a) for a in slots]) * id
         self.classes[id] = Class(slots, i, Group(set(slots)))
         return i
 
@@ -142,7 +155,7 @@ class SlottedUF:
 
     def shrink_slots(self, a: RenamedId, remaining_slots: set[Slot]):
         a = self.find(a)
-        remaining_slots = remaining_slots & a.m.values()
+        remaining_slots = remaining_slots & set(a.m.values())
 
         # a.id :: A
         # a.m :: A -> X
@@ -184,7 +197,7 @@ class SlottedUF:
 
         if a.id != b.id:
             # make a point to b
-            self.move_to(a.id, RenamedId(m_ab, b.id))
+            self.move_to(a.id, m_ab * b.id)
         else:
             # add self-symmetry
             self.classes[a.id].group.add(m_ab)
@@ -228,31 +241,46 @@ class SlottedEGraph():
             return m, Var(Slot(0))
         assert(isinstance(n, FNode))
 
-        # TODO impl strong-shape computation
-
         # canonize args
         n = FNode(n.f, tuple(map(self.find, n.args)))
 
-        # build translation mapping
-        d = {}
-        for a in n.args:
-            for v in a.m.values():
-                if v not in d:
-                    d[v] = Slot(len(d))
-        m = Renaming.mk(d.items())
-        # m :: slots(n) -> Shape-slots
+        best = None
+        for gs in itertools.product(*[self.uf.classes[a.id].group.perms for a in n.args]):
+            n2 = FNode(n.f, tuple(a.m * g * a.id for (g, a) in zip(gs, n.args)))
 
-        # rename e-node accordingly
-        shape = FNode(n.f, tuple(m*a for a in n.args))
+            # build translation mapping
+            d = {}
+            for a in n2.args:
+                for v in a.m.values():
+                    if v not in d:
+                        d[v] = Slot(len(d))
+            m = Renaming.mk(d.items())
+            # m :: slots(n) -> Shape-slots
 
-        return m.inverse(), shape
+            # rename e-node accordingly
+            shape = FNode(n.f, tuple(m*a for a in n2.args))
+            if best is None or self.is_shape_lower(shape, best[1]):
+                best = (m.inverse(), shape)
+
+        return best
+
+    # return sh1 < sh2
+    def is_shape_lower(self, sh1: Shape, sh2: Shape) -> bool:
+        assert(sh1.f == sh2.f)
+        for (a1, a2) in zip(sh1.args, sh2.args):
+            assert(a1.id == a2.id)
+            for (v1, v2) in zip(a1.m.values(), a2.m.values()):
+                if v1 < v2: return True
+                if v1 > v2: return False
+        assert(sh1 == sh2)
+        return False
 
     def add_node(self, n : ENode) -> RenamedId:
         m, shape = self.shape(n)
         if shape in self.hashcons:
             return m * self.hashcons[shape]
 
-        id = self.uf.makeset(m.values())
+        id = self.uf.makeset(set(m.values()))
         self.hashcons[shape] = m.inverse() * id
         return id
 

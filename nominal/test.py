@@ -1,6 +1,6 @@
 from slotted_egraph import *
 
-s = lambda slot: eg.add_node(Var(slot))
+s = lambda slot: eg.add_node(Var(Slot(slot)))
 f = lambda x, y: eg.add_node(FNode("f", (x, y)))
 g = lambda x, y: eg.add_node(FNode("g", (x, y)))
 a = lambda: eg.add_node(FNode("a", ()))
@@ -14,7 +14,6 @@ def test2():
     assert(not eg.is_equal(g(s(24), s(5)), f(a(), s(24))))
 
 def test3():
-    # TODO this requires strong-shape computation
     eg.union(f(s(0), s(1)), f(s(1), s(0)))
     eg.union(a(), g(s(0), f(s(0), s(1))))
     assert(eg.is_equal(a(), g(s(7), f(s(12), s(7)))))
